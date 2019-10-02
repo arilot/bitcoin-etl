@@ -1,0 +1,43 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - docker pull gcr.io/$PROJECT_ID/${_IMAGE}:latest || exit 0
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/${_IMAGE}:$SHORT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/${_IMAGE}:latest
+      - .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - gcr.io/$PROJECT_ID/${_IMAGE}:$SHORT_SHA
+
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - --namespace=${_K8S_NS}
+      - set
+      - image
+      - deployment
+      - ${_DEPLOYMENT0}
+      - stream=gcr.io/$PROJECT_ID/${_IMAGE}:$SHORT_SHA
+    env:
+      - CLOUDSDK_COMPUTE_ZONE=${_ZONE}
+      - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+
+substitutions:
+  _IMAGE: bitcoin-etl
+  _DEPLOYMENT0: bitcoin-streaming-app-deployment
+  _ZONE: us-central1-b
+  _CLUSTER_NAME: baas0
+  _K8S_NS: dev-etl-0
+
+images:
+  - gcr.io/$PROJECT_ID/${_IMAGE}:$SHORT_SHA
+  - gcr.io/$PROJECT_ID/${_IMAGE}:latest
